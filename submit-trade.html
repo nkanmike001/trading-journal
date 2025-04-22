@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Submit Trade - Trading Journal</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Submit Trade</h1>
+    <form id="tradeForm">
+      <input type="date" name="date" required>
+      <input type="text" name="pair" placeholder="e.g., EUR/USD" required>
+      <select name="outcome" required>
+        <option value="Win">Win</option>
+        <option value="Loss">Loss</option>
+      </select>
+      <input type="number" name="gain" placeholder="Gain/Loss (e.g., 50)" required>
+      <input type="text" name="entry" placeholder="Entry Price (optional)">
+      <input type="text" name="exit" placeholder="Exit Price (optional)">
+      <button type="submit">Submit Trade</button>
+    </form>
+    <p><a href="dashboard.html">Back to Dashboard</a></p>
+  </div>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
