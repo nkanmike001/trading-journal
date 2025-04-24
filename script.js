@@ -119,7 +119,11 @@ function renderDashboard(user) {
       `Average Gain: ${metrics.total ? (metrics.gainSum / metrics.total).toFixed(2) : 0}`;
   }, (error) => {
     console.error("Firestore fetch error:", error.code, error.message);
-    alert("Error loading dashboard: " + error.message);
+    if (error.code === "failed-precondition" && error.message.includes("index")) {
+      alert("Dashboard failed to load: Missing Firestore index. Please check the Console for an index creation link and create it in Firebase.");
+    } else {
+      alert("Error loading dashboard: " + error.message);
+    }
   });
 }
 
@@ -174,7 +178,7 @@ if (logoutLink) {
   });
 }
 
-// Wait for auth state to stabilize before handling page access
+// Handle auth state and page access
 document.addEventListener("DOMContentLoaded", () => {
   const protectedPages = ["submit-trade.html", "dashboard.html"];
   const isProtectedPage = protectedPages.some(page => window.location.pathname.includes(page));
