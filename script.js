@@ -25,31 +25,6 @@ function renderDashboard(user) {
     orderBy("timestamp", "desc")
   );
   onSnapshot(q, (snapshot) => {
-    if (snapshot.empty) {
-      console.log("No trades found for user");
-      document.querySelector("#tradeTable tbody").innerHTML = "<tr><td colspan='6'>No trades found</td></tr>";
-      document.getElementById("winRate").textContent = "Win Rate: 0%";
-      document.getElementById("totalTrades").textContent = "Total Trades: 0";
-      document.getElementById("avgGain").textContent = "Average Gain: 0";
-      const ctx = document.getElementById("gainChart").getContext("2d");
-      new Chart(ctx, {
-        type: "line",
-        data: {
-          labels: [],
-          datasets: [{ label: "Cumulative Gain", data: [], fill: true, borderColor: "#007bff" }]
-        },
-        options: { scales: { y: { beginAtZero: true } } }
-      });
-      const calendarEl = document.getElementById("calendar");
-      const calendar = new FullCalendar.Calendar(calendarEl, {
-        plugins: ["dayGrid"],
-        initialView: "dayGridMonth",
-        events: []
-      });
-      calendar.render();
-      return;
-    }
-
     const trades = [];
     snapshot.forEach(doc => {
       const trade = doc.data();
@@ -68,13 +43,66 @@ function renderDashboard(user) {
         <td>${trade.date}</td>
         <td>${trade.pair}</td>
         <td>${trade.outcome}</td>
-        <td>${trade.gain.toFixed(2)}</td>
+        <td>${trade.gain.toFixed(2)}%</td>
         <td>${trade.entry || '-'}</td>
         <td>${trade.exit || '-'}</td>
       </tr>
-    `).join("") : "<tr><td colspan='6'>No valid trades found</td></tr>";
+    `).join("") : "<tr><td colspan='6'>No trades found</td></tr>";
 
-    // Update cumulative gain chart
+    // Calculate metrics
+    const today = new Date().toISOString().split("T")[0];
+    const dailyGain = trades
+      .filter(trade => trade.date === today)
+      .reduce((sum, trade) => sum + trade.gain, 0);
+    const totalGain = trades.reduce((sum, trade) => sum + trade.gain, 0);
+    const totalTrades = trades.length;
+    const wins = trades.filter(trade => trade.outcome === "Win").length;
+    const losses = trades.filter(trade => trade.outcome === "Loss").length;
+    const winRate = totalTrades ? (wins / totalTrades * 100) : 0;
+
+    // Assume RR is calculated from entry/exit prices (simplified; requires actual RR data in Firestore for accuracy)
+    const avgRR = trades.length ? trades.reduce((sum, trade) => {
+      if (trade.entry && trade.exit && trade.gain !== 0) {
+        const entry = parseFloat(trade.entry);
+        const exit = parseFloat(trade.exit);
+        const risk = Math.abs(entry - (trade.outcome === "Win" ? entry * 0.99 : entry * 1.01)); // Simplified risk
+        const reward = Math.abs(exit - entry);
+        return sum + (reward / risk || 0);
+      }
+      return sum;
+    }, 0) / trades.length : 0;
+
+    // Calculate expectancy: (WinRate * AvgWin) - (LossRate * AvgLoss)
+    const avgWin = wins ? trades.filter(t => t.outcome === "Win").reduce((sum, t) => sum + t.gain, 0) / wins : 0;
+    const avgLoss = losses ? trades.filter(t => t.outcome === "Loss").reduce((sum, t) => sum + t.gain, 0) / losses : 0;
+    const expectancy = (winRate / 100 * avgWin) - ((1 - winRate / 100) * avgLoss);
+
+    // Calculate profit ratio: Total Gains / Total Losses
+    const totalWins = trades.filter(t => t.outcome === "Win").reduce((sum, t) => sum + t.gain, 0);
+    const totalLosses = Math.abs(trades.filter(t => t.outcome === "Loss").reduce((sum, t) => sum + t.gain, 0));
+    const profitRatio = totalLosses ? totalWins / totalLosses : totalWins > 0 ? Infinity : 0;
+
+    // Update metrics
+    document.getElementById("dailyGain").textContent = `${dailyGain.toFixed(2)}%`;
+    document.getElementById("totalGain").textContent = `${totalGain.toFixed(2)}%`;
+    const winRateMeter = document.getElementById("winRateMeter");
+    winRateMeter.value = winRate;
+    const winRateStatus = document.getElementById("winRateStatus");
+    if (winRate > 60 && avgRR > 1.5) {
+      winRateStatus.textContent = "Profitable";
+      winRateStatus.style.color = "#34c759";
+    } else if (winRate < 40 || avgRR < 1) {
+      winRateStatus.textContent = "Not Profitable";
+      winRateStatus.style.color = "#ff3b30";
+    } else {
+      winRateStatus.textContent = "Breakeven";
+      winRateStatus.style.color = "#ff9500";
+    }
+    document.getElementById("avgRR").textContent = avgRR.toFixed(2);
+    document.getElementById("expectancy").textContent = expectancy.toFixed(2);
+    document.getElementById("profitRatio").textContent = profitRatio.toFixed(2);
+
+    // Update cumulative gain chart (no gridlines)
     const ctx = document.getElementById("gainChart").getContext("2d");
     const sortedTrades = trades.sort((a, b) => new Date(a.date) - new Date(b.date));
     const chartData = sortedTrades.reduce((acc, trade) => {
@@ -86,37 +114,61 @@ function renderDashboard(user) {
       type: "line",
       data: {
         labels: chartData.dates,
-        datasets: [{ label: "Cumulative Gain", data: chartData.gains, fill: true, borderColor: "#007bff" }]
+        datasets: [{
+          label: "Cumulative Gain (%)",
+          data: chartData.gains,
+          fill: true,
+          backgroundColor: "rgba(26, 115, 232, 0.2)",
+          borderColor: "#1a73e8",
+          tension: 0.3
+        }]
       },
-      options: { scales: { y: { beginAtZero: true } } }
+      options: {
+        scales: {
+          x: { display: true, grid: { display: false } },
+          y: { beginAtZero: true, grid: { display: false }, title: { display: true, text: "Gain (%)" } }
+        },
+        plugins: { legend: { display: true } }
+      }
     });
 
-    // Update trade calendar
+    // Update total trades pie chart
+    const pieCtx = document.getElementById("tradesPieChart").getContext("2d");
+    new Chart(pieCtx, {
+      type: "pie",
+      data: {
+        labels: ["Wins", "Losses"],
+        datasets: [{
+          data: [wins, losses],
+          backgroundColor: ["#34c759", "#ff3b30"],
+          borderColor: "#fff",
+          borderWidth: 2
+        }]
+      },
+      options: {
+        plugins: { legend: { position: "bottom" } }
+      }
+    });
+
+    // Update daily gain calendar
+    const dailyGains = trades.reduce((acc, trade) => {
+      acc[trade.date] = (acc[trade.date] || 0) + trade.gain;
+      return acc;
+    }, {});
     const calendarEl = document.getElementById("calendar");
     const calendar = new FullCalendar.Calendar(calendarEl, {
       plugins: ["dayGrid"],
       initialView: "dayGridMonth",
-      events: trades.map(trade => ({
-        title: `${trade.pair} (${trade.outcome})`,
-        start: trade.date,
-        backgroundColor: trade.outcome === "Win" ? "green" : "red"
-      }))
+      events: Object.entries(dailyGains).map(([date, gain]) => ({
+        title: `${gain.toFixed(2)}%`,
+        start: date,
+        backgroundColor: gain > 0 ? "rgba(52, 199, 89, 0.3)" : "rgba(255, 59, 48, 0.3)",
+        borderColor: gain > 0 ? "#34c759" : "#ff3b30",
+        textColor: "#333"
+      })),
+      eventDisplay: "block"
     });
     calendar.render();
-
-    // Update metrics
-    const metrics = trades.reduce((acc, trade) => {
-      acc.total++;
-      if (trade.outcome === "Win") acc.wins++;
-      acc.gainSum += trade.gain;
-      return acc;
-    }, { total: 0, wins: 0, gainSum: 0 });
-    document.getElementById("winRate").textContent = 
-      `Win Rate: ${metrics.total ? (metrics.wins / metrics.total * 100).toFixed(2) : 0}%`;
-    document.getElementById("totalTrades").textContent = 
-      `Total Trades: ${metrics.total}`;
-    document.getElementById("avgGain").textContent = 
-      `Average Gain: ${metrics.total ? (metrics.gainSum / metrics.total).toFixed(2) : 0}`;
   }, (error) => {
     console.error("Firestore fetch error:", error.code, error.message);
     if (error.code === "failed-precondition" && error.message.includes("index")) {
