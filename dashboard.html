@@ -11,26 +11,71 @@
 <body>
   <div class="container">
     <h1>Trading Dashboard</h1>
-    <h2>Trade History</h2>
-    <table id="tradeTable">
-      <thead>
-        <tr><th>Date</th><th>Pair</th><th>Outcome</th><th>Gain</th><th>Entry</th><th>Exit</th></tr>
-      </thead>
-      <tbody></tbody>
-    </table>
-    <h2>Cumulative Gain</h2>
-    <canvas id="gainChart"></canvas>
-    <h2>Trade Calendar</h2>
-    <div id="calendar"></div>
-    <h2>Metrics</h2>
-    <p id="winRate">Win Rate: Loading...</p>
-    <p id="totalTrades">Total Trades: Loading...</p>
-    <p id="avgGain">Average Gain: Loading...</p>
+    <div class="daily-gain">
+      <h2>Today's Gain: <span id="dailyGain">0.00%</span></h2>
+    </div>
+    <div class="metrics-section">
+      <h2>Metrics</h2>
+      <div class="metrics-grid">
+        <div class="metric">
+          <label>Total Gain</label>
+          <p id="totalGain">0.00%</p>
+        </div>
+        <div class="metric">
+          <label>Win Rate</label>
+          <meter id="winRateMeter" min="0" max="100" low="40" high="60" optimum="80" value="0"></meter>
+          <p id="winRateStatus">Breakeven</p>
+        </div>
+        <div class="metric">
+          <label>Average RR</label>
+          <p id="avgRR">0.00</p>
+        </div>
+        <div class="metric">
+          <label>Expectancy</label>
+          <p id="expectancy">0.00</p>
+        </div>
+        <div class="metric">
+          <label>Profit Ratio</label>
+          <p id="profitRatio">0.00</p>
+        </div>
+      </div>
+    </div>
+    <div class="chart-section">
+      <h2>Cumulative Gain (%)</h2>
+      <canvas id="gainChart"></canvas>
+    </div>
+    <div class="total-trades-section">
+      <h2>Total Trades</h2>
+      <canvas id="tradesPieChart"></canvas>
+    </div>
+    <div class="calendar-section">
+      <h2><button class="collapse-toggle" onclick="toggleCollapse('calendarContent')">Daily Gain Calendar</button></h2>
+      <div id="calendarContent" class="collapsible">
+        <div id="calendar"></div>
+      </div>
+    </div>
+    <div class="trade-log-section">
+      <h2><button class="collapse-toggle" onclick="toggleCollapse('tradeLogContent')">Trade Log</button></h2>
+      <div id="tradeLogContent" class="collapsible">
+        <table id="tradeTable">
+          <thead>
+            <tr><th>Date</th><th>Pair</th><th>Outcome</th><th>Gain (%)</th><th>Entry</th><th>Exit</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
     <p><a href="submit-trade.html">Submit New Trade</a> | <a href="#" id="logout">Logout</a></p>
   </div>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/main.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/main.min.js"></script>
   <script type="module" src="script.js"></script>
+  <script>
+    function toggleCollapse(id) {
+      const content = document.getElementById(id);
+      content.style.display = content.style.display === "none" ? "block" : "none";
+    }
+  </script>
 </body>
 </html>
