@@ -1,24 +1,21 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
 import { getFirestore, collection, addDoc, query, where, orderBy, onSnapshot, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 
-// Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyDPnp7kwhZheIGejkNdYyTK0b-urqJbOqE",
-  authDomain: "tradingjournal-b0573.firebaseapp.com",
-  projectId: "tradingjournal-b0573",
-  storageBucket: "tradingjournal-b0573.firebasestorage.app",
-  messagingSenderId: "22223820673",
-  appId: "1:22223820673:web:56a7c709ffb4f15eb07a80"
+  apiKey: "AIzaSyDfrbfon26cOVk0cgiBqhEfUYRoJjW6ozQ",
+  authDomain: "trad-5257a.firebaseapp.com",
+  projectId: "trad-5257a",
+  storageBucket: "trad-5257a.firebasestorage.app",
+  messagingSenderId: "391760292829",
+  appId: "1:391760292829:web:fceec8a1742218b677a434"
 };
 
-// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 console.log("Firebase initialized successfully");
 
-// Protect pages
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? `Logged in as ${user.email}` : "No user");
   const protectedPages = ["submit-trade.html", "dashboard.html"];
@@ -30,7 +27,21 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
-// Submit trade
+const logoutLink = document.getElementById("logout");
+if (logoutLink) {
+  logoutLink.addEventListener("click", async (e) => {
+    e.preventDefault();
+    try {
+      await signOut(auth);
+      console.log("User logged out");
+      window.location.href = "login.html";
+    } catch (error) {
+      console.error("Logout error:", error.message);
+      alert("Logout failed: " + error.message);
+    }
+  });
+}
+
 const tradeForm = document.getElementById("tradeForm");
 if (tradeForm) {
   console.log("Trade form found");
@@ -64,7 +75,6 @@ if (tradeForm) {
   });
 }
 
-// Dashboard data
 if (document.getElementById("tradeTable")) {
   console.log("Dashboard loaded");
   const user = auth.currentUser;
@@ -75,7 +85,6 @@ if (document.getElementById("tradeTable")) {
       snapshot.forEach(doc => trades.push({ id: doc.id, ...doc.data() }));
       console.log("Trades fetched:", trades.length);
 
-      // Trade table
       const tbody = document.querySelector("#tradeTable tbody");
       tbody.innerHTML = trades.map(trade => `
         <tr>
@@ -88,7 +97,6 @@ if (document.getElementById("tradeTable")) {
         </tr>
       `).join("");
 
-      // Cumulative gain chart
       const ctx = document.getElementById("gainChart").getContext("2d");
       const data = trades
         .sort((a, b) => new Date(a.date) - new Date(b.date))
@@ -106,7 +114,6 @@ if (document.getElementById("tradeTable")) {
         options: { scales: { y: { beginAtZero: true } } }
       });
 
-      // Calendar
       const calendarEl = document.getElementById("calendar");
       const calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: ["dayGrid"],
@@ -119,7 +126,6 @@ if (document.getElementById("tradeTable")) {
       });
       calendar.render();
 
-      // Metrics
       const metrics = trades.reduce((acc, trade) => {
         acc.total++;
         if (trade.outcome === "Win") acc.wins++;
