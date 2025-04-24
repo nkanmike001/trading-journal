@@ -16,6 +16,7 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 console.log("Firebase initialized successfully");
 
+// Protect pages and handle auth state
 onAuthStateChanged(auth, (user) => {
   console.log("Auth state:", user ? `Logged in as ${user.email}` : "No user");
   const protectedPages = ["submit-trade.html", "dashboard.html"];
@@ -27,6 +28,7 @@ onAuthStateChanged(auth, (user) => {
   }
 });
 
+// Handle logout
 const logoutLink = document.getElementById("logout");
 if (logoutLink) {
   logoutLink.addEventListener("click", async (e) => {
@@ -42,6 +44,7 @@ if (logoutLink) {
   });
 }
 
+// Submit trade
 const tradeForm = document.getElementById("tradeForm");
 if (tradeForm) {
   console.log("Trade form found");
@@ -60,60 +63,100 @@ if (tradeForm) {
         date: formData.get("date"),
         pair: formData.get("pair"),
         outcome: formData.get("outcome"),
-        gain: parseFloat(formData.get("gain")),
+        gain: parseFloat(formData.get("gain")) || 0,
         entry: formData.get("entry") || "",
         exit: formData.get("exit") || "",
         timestamp: serverTimestamp()
       });
-      console.log("Trade submitted");
+      console.log("Trade submitted successfully");
       alert("Trade submitted successfully!");
       e.target.reset();
     } catch (error) {
-      console.error("Trade error:", error.message);
+      console.error("Trade submission error:", error.code, error.message);
       alert("Error submitting trade: " + error.message);
     }
   });
 }
 
+// Dashboard data rendering
 if (document.getElementById("tradeTable")) {
-  console.log("Dashboard loaded");
+  console.log("Dashboard page loaded");
   const user = auth.currentUser;
   if (user) {
-    const q = query(collection(db, "trades"), where("userId", "==", user.uid), orderBy("timestamp", "desc"));
+    console.log("Fetching trades for user:", user.uid);
+    const q = query(
+      collection(db, "trades"),
+      where("userId", "==", user.uid),
+      orderBy("timestamp", "desc")
+    );
     onSnapshot(q, (snapshot) => {
-      const trades = [];
-      snapshot.forEach(doc => trades.push({ id: doc.id, ...doc.data() }));
-      console.log("Trades fetched:", trades.length);
+      if (snapshot.empty) {
+        console.log("No trades found for user");
+        document.querySelector("#tradeTable tbody").innerHTML = "<tr><td colspan='6'>No trades found</td></tr>";
+        document.getElementById("winRate").textContent = "Win Rate: 0%";
+        document.getElementById("totalTrades").textContent = "Total Trades: 0";
+        document.getElementById("avgGain").textContent = "Average Gain: 0";
+        const ctx = document.getElementById("gainChart").getContext("2d");
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: [],
+            datasets: [{ label: "Cumulative Gain", data: [], fill: true, borderColor: "#007bff" }]
+          },
+          options: { scales: { y: { beginAtZero: true } } }
+        });
+        const calendarEl = document.getElementById("calendar");
+        const calendar = new FullCalendar.Calendar(calendarEl, {
+          plugins: ["dayGrid"],
+          initialView: "dayGridMonth",
+          events: []
+        });
+        calendar.render();
+        return;
+      }
 
+      const trades = [];
+      snapshot.forEach(doc => {
+        const trade = doc.data();
+        if (trade.date && trade.pair && trade.outcome && typeof trade.gain === "number") {
+          trades.push({ id: doc.id, ...trade });
+        } else {
+          console.warn("Invalid trade data:", doc.id, trade);
+        }
+      });
+      console.log("Trades fetched:", trades.length, trades);
+
+      // Update trade table
       const tbody = document.querySelector("#tradeTable tbody");
-      tbody.innerHTML = trades.map(trade => `
+      tbody.innerHTML = trades.length ? trades.map(trade => `
         <tr>
           <td>${trade.date}</td>
           <td>${trade.pair}</td>
           <td>${trade.outcome}</td>
-          <td>${trade.gain}</td>
-          <td>${trade.entry}</td>
-          <td>${trade.exit}</td>
+          <td>${trade.gain.toFixed(2)}</td>
+          <td>${trade.entry || '-'}</td>
+          <td>${trade.exit || '-'}</td>
         </tr>
-      `).join("");
+      `).join("") : "<tr><td colspan='6'>No valid trades found</td></tr>";
 
+      // Update cumulative gain chart
       const ctx = document.getElementById("gainChart").getContext("2d");
-      const data = trades
-        .sort((a, b) => new Date(a.date) - new Date(b.date))
-        .reduce((acc, trade) => {
-          acc.dates.push(trade.date);
-          acc.gains.push((acc.gains[acc.gains.length - 1] || 0) + trade.gain);
-          return acc;
-        }, { dates: [], gains: [] });
+      const sortedTrades = trades.sort((a, b) => new Date(a.date) - new Date(b.date));
+      const chartData = sortedTrades.reduce((acc, trade) => {
+        acc.dates.push(trade.date);
+        acc.gains.push((acc.gains[acc.gains.length - 1] || 0) + trade.gain);
+        return acc;
+      }, { dates: [], gains: [] });
       new Chart(ctx, {
         type: "line",
         data: {
-          labels: data.dates,
-          datasets: [{ label: "Cumulative Gain", data: data.gains, fill: true, borderColor: "#007bff" }]
+          labels: chartData.dates,
+          datasets: [{ label: "Cumulative Gain", data: chartData.gains, fill: true, borderColor: "#007bff" }]
         },
         options: { scales: { y: { beginAtZero: true } } }
       });
 
+      // Update trade calendar
       const calendarEl = document.getElementById("calendar");
       const calendar = new FullCalendar.Calendar(calendarEl, {
         plugins: ["dayGrid"],
@@ -126,6 +169,7 @@ if (document.getElementById("tradeTable")) {
       });
       calendar.render();
 
+      // Update metrics
       const metrics = trades.reduce((acc, trade) => {
         acc.total++;
         if (trade.outcome === "Win") acc.wins++;
@@ -139,8 +183,12 @@ if (document.getElementById("tradeTable")) {
       document.getElementById("avgGain").textContent = 
         `Average Gain: ${metrics.total ? (metrics.gainSum / metrics.total).toFixed(2) : 0}`;
     }, (error) => {
-      console.error("Firestore error:", error.message);
+      console.error("Firestore fetch error:", error.code, error.message);
       alert("Error loading dashboard: " + error.message);
     });
+  } else {
+    console.log("No user logged in for dashboard");
+    alert("Please login to view dashboard.");
+    window.location.href = "login.html";
   }
 }
