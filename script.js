@@ -16,44 +16,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 console.log("Firebase initialized successfully");
 
-// Handle trade submission
-const tradeForm = document.getElementById("tradeForm");
-if (tradeForm) {
-  console.log("Trade form found");
-  tradeForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const user = auth.currentUser;
-    if (!user) {
-      console.log("No user logged in for trade submission");
-      alert("Please login to submit trades.");
-      window.location.href = "login.html";
-      return;
-    }
-    const formData = new FormData(e.target);
-    try {
-      await addDoc(collection(db, "trades"), {
-        userId: user.uid,
-        date: formData.get("date"),
-        pair: formData.get("pair"),
-        outcome: formData.get("outcome"),
-        gain: parseFloat(formData.get("gain")) || 0,
-        entry: formData.get("entry") || "",
-        exit: formData.get("exit") || "",
-        timestamp: serverTimestamp()
-      });
-      console.log("Trade submitted successfully");
-      alert("Trade submitted successfully!");
-      e.target.reset();
-    } catch (error) {
-      console.error("Trade submission error:", error.code, error.message);
-      alert("Error submitting trade: " + error.message);
-    }
-  });
-}
-
-// Handle dashboard data rendering
+// Function to render dashboard data
 function renderDashboard(user) {
-  console.log("Dashboard page loaded, user:", user.uid);
+  console.log("Rendering dashboard for user:", user.uid);
   const q = query(
     collection(db, "trades"),
     where("userId", "==", user.uid),
@@ -158,24 +123,40 @@ function renderDashboard(user) {
   });
 }
 
-// Protect pages and handle auth state
-onAuthStateChanged(auth, (user) => {
-  console.log("Auth state:", user ? `Logged in as ${user.email}` : "No user");
-  const protectedPages = ["submit-trade.html", "dashboard.html"];
-  if (user) {
-    if (window.location.pathname.includes("index.html")) {
-      console.log("Redirecting logged-in user to dashboard");
-      window.location.href = "dashboard.html";
+// Handle trade submission
+const tradeForm = document.getElementById("tradeForm");
+if (tradeForm) {
+  console.log("Trade form found");
+  tradeForm.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const user = auth.currentUser;
+    if (!user) {
+      console.log("No user logged in for trade submission");
+      alert("Please login to submit trades.");
+      window.location.href = "login.html";
+      return;
     }
-    if (document.getElementById("tradeTable")) {
-      renderDashboard(user);
+    const formData = new FormData(e.target);
+    try {
+      await addDoc(collection(db, "trades"), {
+        userId: user.uid,
+        date: formData.get("date"),
+        pair: formData.get("pair"),
+        outcome: formData.get("outcome"),
+        gain: parseFloat(formData.get("gain")) || 0,
+        entry: formData.get("entry") || "",
+        exit: formData.get("exit") || "",
+        timestamp: serverTimestamp()
+      });
+      console.log("Trade submitted successfully");
+      alert("Trade submitted successfully!");
+      e.target.reset();
+    } catch (error) {
+      console.error("Trade submission error:", error.code, error.message);
+      alert("Error submitting trade: " + error.message);
     }
-  } else if (protectedPages.some(page => window.location.pathname.includes(page))) {
-    console.log("No user, redirecting to login");
-    alert("Please login to access this page.");
-    window.location.href = "login.html";
-  }
-});
+  });
+}
 
 // Handle logout
 const logoutLink = document.getElementById("logout");
@@ -192,3 +173,25 @@ if (logoutLink) {
     }
   });
 }
+
+// Wait for auth state to stabilize before handling page access
+document.addEventListener("DOMContentLoaded", () => {
+  const protectedPages = ["submit-trade.html", "dashboard.html"];
+  const isProtectedPage = protectedPages.some(page => window.location.pathname.includes(page));
+
+  onAuthStateChanged(auth, (user) => {
+    console.log("Auth state:", user ? `Logged in as ${user.email}` : "No user");
+    if (user) {
+      if (window.location.pathname.includes("index.html")) {
+        console.log("Redirecting logged-in user to dashboard");
+        window.location.href = "dashboard.html";
+      } else if (isProtectedPage && document.getElementById("tradeTable")) {
+        renderDashboard(user);
+      }
+    } else if (isProtectedPage) {
+      console.log("No user, redirecting to login");
+      alert("Please login to access this page.");
+      window.location.href = "login.html";
+    }
+  });
+});
