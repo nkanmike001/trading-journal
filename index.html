@@ -3,15 +3,164 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Trading Journal</title>
+  <title>Portfolio Dashboard - Trading Journal</title>
   <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/core@6.1.15/main.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fullcalendar/daygrid@6.1.15/main.min.js"></script>
 </head>
 <body>
   <div class="container">
-    <h1>Trading Journal</h1>
-    <p>Track your trades and analyze performance.</p>
-    <button onclick="window.location.href='register.html'">Register</button>
-    <button onclick="window.location.href='login.html'">Login</button>
+    <div class="header">
+      <h1>Welcome, test1!</h1>
+      <div class="portfolio-summary">
+        Total Gain: <span>125.50%</span> | Total Trades: <span>10</span>
+      </div>
+      <button id="logoutButton">Logout</button>
+    </div>
+    <div class="dashboard-grid">
+      <div class="daily-gain card">
+        <h2>Today's Gain</h2>
+        <p id="dailyGain">50.00%</p>
+        <ul class="today-trades">
+          <li>EUR/USD: <span style="color: #00d4b4">+50.00%</span></li>
+        </ul>
+        <div class="trend-indicator" id="trendIndicator">Performance Trend: ▲ Up</div>
+      </div>
+      <div class="metrics-section card">
+        <h2>Metrics Overview</h2>
+        <p id="winRateGreeting">Hi test1, your win rate is 70.00% - you're profitable!</p>
+        <div class="win-rr-chart">
+          <canvas id="winRRChart"></canvas>
+          <p id="winRRChartError" style="display: none; color: #ff6666;">Failed to load visualization</p>
+        </div>
+        <div class="metrics-grid">
+          <div class="metric">
+            <label>Total Gain</label>
+            <p>125.50%</p>
+          </div>
+          <div class="metric">
+            <label>Average Gain</label>
+            <p>12.55%</p>
+          </div>
+          <div class="metric">
+            <label>Average RR</label>
+            <p>1.67</p>
+          </div>
+          <div class="metric">
+            <label>Expectancy</label>
+            <p>8.75%</p>
+          </div>
+          <div class="metric">
+            <label>Profit Ratio</label>
+            <p>3.50</p>
+          </div>
+          <div class="metric">
+            <label>Max Drawdown</label>
+            <p>-15.00%</p>
+          </div>
+        </div>
+        <p><a href="how_to_be_profitable.html" target="_blank">Learn How to Be Profitable</a></p>
+      </div>
+      <div class="total-trades-section card">
+        <h2>Total Trades</h2>
+        <canvas id="tradesPieChart"></canvas>
+        <p id="tradesPieChartError" style="display: none; color: #ff6666;">Failed to load chart</p>
+        <div class="numeric-data">
+          Wins: <span>7</span> | Losses: <span>3</span>
+        </div>
+      </div>
+      <div class="monthly-performance card">
+        <h2>Performance</h2>
+        <div class="filter-section">
+          <select id="performanceFilter">
+            <option value="day">Day</option>
+            <option value="week">Week</option>
+            <option value="month" selected>Month</option>
+            <option value="year">Year</option>
+            <option value="custom">Custom</option>
+          </select>
+          <div id="customRange" style="display: none;">
+            <input type="date" id="startDate">
+            <input type="date" id="endDate">
+            <button id="applyCustomRange">Apply</button>
+          </div>
+        </div>
+        <canvas id="performanceChart"></canvas>
+        <p id="performanceChartError" style="display: none; color: #ff6666;">Failed to load chart</p>
+      </div>
+      <div class="quick-stats card">
+        <h2>Quick Stats</h2>
+        <div class="stats-grid">
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#00d4b4"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5v-2L12 20l-10-5V17z"/></svg>
+            <div>Best Trade: <span>75.00%</span></div>
+            <canvas id="bestTradeSparkline"></canvas>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#ff6666"><path d="M12 22l10-5-10-5-10 5 10 5zm0-15l10-5-10-5-10 5 10 5z"/></svg>
+            <div>Worst Trade: <span>-20.00%</span></div>
+            <canvas id="worstTradeSparkline"></canvas>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#ffd700"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>
+            <div>Longest Win Streak: <span>4</span></div>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#00d4b4"><path d="M4 8h4V4H4v4zm6 12h4v-4h-4v4zm-6 0h4v-4H4v4zm0-6h4v-4H4v4zm6 0h4v-4h-4v4zm6-10v4h4V4h-4zm-6 4h4V4h-4v4zm6 6h4v-4h-4v4zm0 6h4v-4h-4v4z"/></svg>
+            <div>Total Trades: <span>10</span></div>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#ffd700"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm0 18a8 8 0 110-16 8 8 0 010 16zm-1-5h2v2h-2v-2zm0-8h2v6h-2V7z"/></svg>
+            <div>Win Rate: <span>70.00%</span></div>
+            <canvas id="winRateBar"></canvas>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#00d4b4"><path d="M12 4a8 8 0 100 16 8 8 0 000-16zm0 14a6 6 0 110-12 6 6 0 010 12zm-2-6H8v2h2v2h2v-2h2v-2h-2V8h-2v2z"/></svg>
+            <div>Average Gain: <span>12.55%</span></div>
+          </div>
+          <div class="stat">
+            <svg viewBox="0 0 24 24" fill="#ff6666"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+            <div>Max Drawdown: <span>-15.00%</span></div>
+          </div>
+        </div>
+        <p id="quickStatsError" style="display: none; color: #ff6666;">Failed to load visualizations</p>
+      </div>
+      <div class="calendar-section card">
+        <h2><button class="collapse-toggle" id="calendarToggle">Daily Gain Calendar</button></h2>
+        <div id="calendarContent" class="collapsible">
+          <div id="calendar"></div>
+          <p class="error" id="calendarError" style="display: none;">Failed to load calendar</p>
+        </div>
+      </div>
+      <div class="trade-log-section card">
+        <h2><button class="collapse-toggle" id="tradeLogToggle">Trade Log</button></h2>
+        <div class="filter-section">
+          <select id="filterOutcome">
+            <option value="all">All Outcomes</option>
+            <option value="Win">Win</option>
+            <option value="Loss">Loss</option>
+          </select>
+        </div>
+        <div id="tradeLogContent" class="collapsible">
+          <table id="tradeTable">
+            <thead>
+              <tr>
+                <th data-col="0">Date</th>
+                <th data-col="1">Pair</th>
+                <th data-col="2">Outcome</th>
+                <th data-col="3">Gain (%)</th>
+                <th>Entry</th>
+                <th>Exit</th>
+              </tr>
+            </thead>
+            <tbody id="tradeTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </div>
+  <script src="script.js"></script>
 </body>
 </html>
